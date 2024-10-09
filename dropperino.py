@@ -9,6 +9,7 @@ from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from urllib.parse import quote, unquote
+from typing import Optional, Tuple
 
 import atexit
 import tempfile
@@ -20,7 +21,6 @@ try:
     from cryptography.x509.oid import NameOID
     from cryptography.hazmat.primitives import serialization, hashes
     from cryptography.hazmat.primitives.asymmetric import rsa
-    from typing import Optional, Tuple
 except:
     print("'cryptography' module not installed.")
     CRYPTO_INSTALLED = False

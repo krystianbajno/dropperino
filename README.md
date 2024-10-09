@@ -6,11 +6,15 @@
 Starting HTTPS server on https://0.0.0.0:443
 ```
 
-Simple upload/download file transfer server with SSL support.
+Simple upload/download file transfer server with SSL generation support.
+
+Certificate generation requires `cryptography` package, but the code will run plain HTTP server without it.
 
 # Installation
 ```bash
 wget https://raw.githubusercontent.com/krystianbajno/dropperino/refs/heads/main/dropperino.py
+
+pip install cryptography # optional for HTTPS
 ```
 
 # Usage 
