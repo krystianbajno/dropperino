@@ -10,6 +10,7 @@ Simple upload/download file transfer server with SSL support.
 
 ### Usage 
 ```bash
+wget https://github.com/krystianbajno/dropperino/raw/refs/heads/main/dropperino.py
 python3 dropperino.py # 0.0.0.0 8000 http
 python3 dropperino.py --ssl # https
 python3 dropperino.py 8000 # port 
