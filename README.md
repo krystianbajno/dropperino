@@ -9,10 +9,10 @@ Starting HTTPS server on https://0.0.0.0:443
 Simple upload/download file transfer server with SSL support.
 
 ### Usage 
-```
-python3 dropperino.py
-python3 dropperino.py --ssl
-python3 dropperino.py 0.0.0.0 8000
-
-Starting HTTPS server on https://0.0.0.0:443
+```bash
+python3 dropperino.py # 0.0.0.0 8000 http
+python3 dropperino.py --ssl # https
+python3 dropperino.py 8000 # port 
+python3 dropperino.py 0.0.0.0 8000 # host port
+python3 dropperino.py 0.0.0.0 8000 --ssl # host port https
 ```
