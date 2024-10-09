@@ -15,7 +15,7 @@ import atexit
 import tempfile
 import argparse
 
-CRYPTO_INSTALLED = True
+__CRYPTO_INSTALLED__ = True
 try:
     from cryptography import x509
     from cryptography.x509.oid import NameOID
@@ -23,8 +23,9 @@ try:
     from cryptography.hazmat.primitives.asymmetric import rsa
 except:
     print("'cryptography' module not installed.")
-    CRYPTO_INSTALLED = False
+    __CRYPTO_INSTALLED__ = False
 
+    
 SERVER_NAME = "Dropperino"
 
 SSL_COUNTRY_NAME = u"PL"
@@ -43,7 +44,6 @@ CSS = """
     a:active { color: green; }
 </style>
 """
-
 
 def INDEX_VIEW(path, files):
     display_path = html.escape(unquote(path))    
@@ -213,47 +213,42 @@ class SSLHandler:
         self.key_file = None
 
     def generate_self_signed_cert(self) -> Tuple[str, str]:
-        if CRYPTO_INSTALLED:
-            key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-            subject = issuer = x509.Name([
-                x509.NameAttribute(NameOID.COUNTRY_NAME, SSL_COUNTRY_NAME),
-                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, SSL_STATE_OR_PROVINCE_NAME),
-                x509.NameAttribute(NameOID.LOCALITY_NAME, SSL_LOCALITY_NAME),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, SSL_ORGANIZATION_NAME),
-                x509.NameAttribute(NameOID.COMMON_NAME, SSL_COMMON_NAME),
-            ])
-            cert = (
-                x509.CertificateBuilder()
-                .subject_name(subject)
-                .issuer_name(issuer)
-                .public_key(key.public_key())
-                .serial_number(x509.random_serial_number())
-                .not_valid_before(datetime.now(timezone.utc))
-                .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
-                .add_extension(x509.SubjectAlternativeName([x509.DNSName(u"get.rekt")]), critical=False)
-                .sign(key, hashes.SHA256())
-            )
-        
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, SSL_COUNTRY_NAME),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, SSL_STATE_OR_PROVINCE_NAME),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, SSL_LOCALITY_NAME),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, SSL_ORGANIZATION_NAME),
+            x509.NameAttribute(NameOID.COMMON_NAME, SSL_COMMON_NAME),
+        ])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(u"get.rekt")]), critical=False)
+            .sign(key, hashes.SHA256())
+        )
+    
 
-            with tempfile.NamedTemporaryFile(delete=False) as cert_temp, \
-                tempfile.NamedTemporaryFile(delete=False) as key_temp:
+        with tempfile.NamedTemporaryFile(delete=False) as cert_temp, \
+            tempfile.NamedTemporaryFile(delete=False) as key_temp:
 
-                key_temp.write(key.private_bytes(
-                    serialization.Encoding.PEM,
-                    serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
-                ))
-                cert_temp.write(cert.public_bytes(serialization.Encoding.PEM))
+            key_temp.write(key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+            ))
+            cert_temp.write(cert.public_bytes(serialization.Encoding.PEM))
 
-                self.cert_file = cert_temp.name
-                self.key_file = key_temp.name
-                
-                print("Cert:", self.cert_file)
-                print("Key:", self.key_file)
-                
-        else:
-            self.cert_file = ""
-            self.key_file = ""
+            self.cert_file = cert_temp.name
+            self.key_file = key_temp.name
+            
+            print("Cert:", self.cert_file)
+            print("Key:", self.key_file)
             
         return self.cert_file, self.key_file
 
@@ -277,7 +272,7 @@ def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False)
     ssl_handler = SSLHandler()
     
     if use_https:
-        use_https = CRYPTO_INSTALLED
+        use_https = __CRYPTO_INSTALLED__
         
     server_address = (host, port)
     httpd = HTTPServer(server_address, DropperinoServer)
