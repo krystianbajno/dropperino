@@ -10,7 +10,7 @@ Simple upload/download file transfer server with SSL support.
 
 # Installation
 ```bash
-wget https://github.com/krystianbajno/dropperino/raw/refs/heads/main/dropperino.py
+wget https://raw.githubusercontent.com/krystianbajno/dropperino/refs/heads/main/dropperino.py
 ```
 
 # Usage 
