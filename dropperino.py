@@ -24,7 +24,6 @@ try:
 except:
     __CRYPTO_INSTALLED__ = False
 
-    
 SERVER_NAME = "Dropperino"
 
 SSL_COUNTRY_NAME = u"PL"
@@ -61,14 +60,12 @@ def INDEX_VIEW(path, files):
                 </form><hr>
                 
                 <ul>
-                
                 {"\n".join(
                     f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}/</a></li>'
                     if os.path.isdir(os.path.join(path, name)) else
                     f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}</a></li>'
                     for name in sorted(files)
                 )}
-                
                 </ul>
                 <small><b>Powered by {POWERED_BY}</b></small>
                 {CSS}
@@ -89,10 +86,15 @@ def UPLOAD_RESPONSE_VIEW(success, message):
                 <small><b>Powered by {POWERED_BY}</b></small>
             </body>
         </html>
-"""
-
+    """
+    
 
 class DropperinoServer(SimpleHTTPRequestHandler):
+    def __init__(self, *args, directory=None, **kwargs):
+        self.base_directory = os.path.abspath(directory) if directory else os.getcwd()
+        print(self.base_directory)
+        super().__init__(*args, **kwargs)
+
     def do_GET(self):
         file_obj = self.handle_index() or self.handle_serve_file(self.path)
         if file_obj:
@@ -103,7 +105,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         self.send_html_response(UPLOAD_RESPONSE_VIEW(success, message))
 
     def handle_index(self) -> Optional[BytesIO]:
-        path = self.translate_path(self.path)
+        path = self._translate_path(self.path)
         if os.path.isdir(path):
             if not self.path.endswith('/'):
                 self.send_redirect(self.path + "/")
@@ -134,7 +136,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
             return False, "Content did not begin with expected boundary."
 
         filename = self._extract_filename()
-        filepath = os.path.join(os.getcwd(), filename)
+        filepath = os.path.join(self.base_directory, filename)
 
         try:
             self._save_uploaded_file(filepath, boundary, content_length)
@@ -169,6 +171,13 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         self.end_headers()
     
     ### -------------
+    
+    def _translate_path(self, path):
+        path = unquote(path)
+        path = path.split('?', 1)[0]
+        path = path.split('#', 1)[0]
+        path = os.path.normpath(path)
+        return os.path.join(self.base_directory, path.lstrip('/'))
 
     def _validate_boundary(self, boundary: bytes) -> bool:
         line = self.rfile.readline()
@@ -267,21 +276,21 @@ class SSLHandler:
         return ssl_context
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False):
+def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False, directory: str = "."):
     ssl_handler = SSLHandler()
     
     if use_https and not __CRYPTO_INSTALLED__:
         print("The 'cryptography' module is not installed. Run :: pip install cryptography. Skipping SSL.")
         use_https = __CRYPTO_INSTALLED__        
-        
+            
     server_address = (host, port)
-    httpd = HTTPServer(server_address, DropperinoServer)
+    httpd = HTTPServer(server_address, lambda *args, **kwargs: DropperinoServer(*args, directory=directory, **kwargs))
 
     if use_https:
         ssl_handler.setup_ssl_context(httpd)
-        print(f"Starting HTTPS server on https://{host}:{port}")
+        print(f"Starting HTTPS server on https://{host}:{port}, serving directory: {directory}")
     else:
-        print(f"Starting HTTP server on http://{host}:{port}")
+        print(f"Starting HTTP server on http://{host}:{port}, serving directory: {directory}")
 
     if use_https:
         signal.signal(signal.SIGINT, lambda sig, frame: shutdown_server(ssl_handler))
@@ -300,9 +309,15 @@ if __name__ == '__main__':
     parser.add_argument('port', nargs='?', type=int, default=8000, help="The port to bind to (default: 8000)")    
     parser.add_argument('host', nargs='?', default='0.0.0.0', help="The host address to bind to (default: 0.0.0.0)")
     parser.add_argument('--ssl', action='store_true', help="Enable HTTPS with a self-signed certificate.")
+    parser.add_argument('--dir', default=".", help="Specify the directory to serve files from (default: current directory)")
 
     args = parser.parse_args()
 
     use_https = args.ssl
+    directory = os.path.abspath(args.dir)
 
-    run_server(host=args.host, port=args.port, use_https=use_https)
+    if not os.path.exists(directory) or not os.path.isdir(directory):
+        print(f"Error: Directory '{directory}' does not exist or is not a directory.")
+        exit(1)
+
+    run_server(host=args.host, port=args.port, use_https=use_https, directory=directory)
