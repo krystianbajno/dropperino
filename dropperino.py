@@ -28,6 +28,16 @@ CSS = """
 </style>
 """
 
+SERVER_NAME = "Dropperino"
+
+SSL_COUNTRY_NAME = u"PL"
+SSL_STATE_OR_PROVINCE_NAME = u"Masovia"
+SSL_LOCALITY_NAME = u"Warsaw"
+SSL_ORGANIZATION_NAME = u"get.rekt"
+SSL_COMMON_NAME = u"get.rekt"
+
+POWERED_BY = "NSA"
+
 class SSLHandler:
     def __init__(self):
         self.cert_file = None
@@ -36,11 +46,11 @@ class SSLHandler:
     def generate_self_signed_cert(self) -> Tuple[str, str]:
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COUNTRY_NAME, u"PL"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"Masovia"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, u"Warsaw"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"get.rekt"),
-            x509.NameAttribute(NameOID.COMMON_NAME, u"get.rekt"),
+            x509.NameAttribute(NameOID.COUNTRY_NAME, SSL_COUNTRY_NAME),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, SSL_STATE_OR_PROVINCE_NAME),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, SSL_LOCALITY_NAME),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, SSL_ORGANIZATION_NAME),
+            x509.NameAttribute(NameOID.COMMON_NAME, SSL_COMMON_NAME),
         ])
         cert = (
             x509.CertificateBuilder()
@@ -196,13 +206,13 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         return f"""
         <!DOCTYPE html>
         <html>
-            <head><title>File Server - {display_path}</title></head>
+            <head><title>{SERVER_NAME} @ {display_path}</title></head>
             <body>
-                <h2>Directory listing for {display_path}</h2>
+                <h2>{SERVER_NAME} @ {display_path}</h2>
                 {upload_form}
                 <ul>{file_links}</ul>
                 {CSS}
-                <small><b>Powered by NSA</b></small>
+                <small><b>Powered by {POWERED_BY}</b></small>
             </body>
         </html>
         """
@@ -226,14 +236,13 @@ class DropperinoServer(SimpleHTTPRequestHandler):
                 <strong>{'Success' if success else 'Failed'}:</strong> {html.escape(message)}<br>
                 <h2><a href="/">Go Back</a></h2><br>
                 {CSS}
-                <small><b>Powered by NSA</b></small>
+                <small><b>Powered by {POWERED_BY}</b></small>
             </body>
         </html>
         """
         self.send_html_response(response_html)
 
     def send_html_response(self, html_content: str):
-        """Helper to send HTML responses."""
         response_bytes = html_content.encode('utf-8')
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
@@ -275,7 +284,7 @@ def shutdown_server(ssl_handler: SSLHandler):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Run a simple HTTP/HTTPS server with file upload/download support.")
+    parser = argparse.ArgumentParser(description="Run an HTTP/HTTPS server with file upload/download support.")
     parser.add_argument('host', nargs='?', default='0.0.0.0', help="The host address to bind to (default: 0.0.0.0)")
     parser.add_argument('port', nargs='?', default=8000, type=int, help="The port to bind to (default: 8000)")
     parser.add_argument('--ssl', action='store_true', help="Enable HTTPS with a self-signed certificate.")
