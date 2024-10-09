@@ -283,8 +283,9 @@ def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False)
     else:
         print(f"Starting HTTP server on http://{host}:{port}")
 
-    signal.signal(signal.SIGINT, lambda sig, frame: shutdown_server(ssl_handler))
-    atexit.register(ssl_handler.cleanup)
+    if use_https:
+        signal.signal(signal.SIGINT, lambda sig, frame: shutdown_server(ssl_handler))
+        atexit.register(ssl_handler.cleanup)
 
     httpd.serve_forever()
 
