@@ -22,7 +22,6 @@ try:
     from cryptography.hazmat.primitives import serialization, hashes
     from cryptography.hazmat.primitives.asymmetric import rsa
 except:
-    print("'cryptography' module not installed.")
     __CRYPTO_INSTALLED__ = False
 
     
@@ -271,8 +270,9 @@ class SSLHandler:
 def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False):
     ssl_handler = SSLHandler()
     
-    if use_https:
-        use_https = __CRYPTO_INSTALLED__
+    if use_https and not __CRYPTO_INSTALLED__:
+        print("The 'cryptography' module is not installed. Run :: pip install cryptography. Skipping SSL.")
+        use_https = __CRYPTO_INSTALLED__        
         
     server_address = (host, port)
     httpd = HTTPServer(server_address, DropperinoServer)
