@@ -289,7 +289,6 @@ def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False)
 
     httpd.serve_forever()
 
-
 def shutdown_server(ssl_handler: SSLHandler):
     print("\nShutting down the server...")
     ssl_handler.cleanup()
