@@ -66,6 +66,10 @@ class SSLHandler:
 
             self.cert_file = cert_temp.name
             self.key_file = key_temp.name
+            
+            print("Cert:", self.cert_file)
+            print("Key:", self.key_file)
+            
             return self.cert_file, self.key_file
 
     def cleanup(self):
