@@ -297,16 +297,12 @@ def shutdown_server(ssl_handler: SSLHandler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run an HTTP/HTTPS server with file upload/download support.")
+    parser.add_argument('port', nargs='?', type=int, default=8000, help="The port to bind to (default: 8000)")    
     parser.add_argument('host', nargs='?', default='0.0.0.0', help="The host address to bind to (default: 0.0.0.0)")
-    parser.add_argument('port', nargs='?', default=8000, type=int, help="The port to bind to (default: 8000)")
     parser.add_argument('--ssl', action='store_true', help="Enable HTTPS with a self-signed certificate.")
-    args = parser.parse_args()
-    
-    host = args.host
-    port = args.port
-            
-    if str(host) == str(port):
-        host = "0.0.0.0"
-        port = args.port
 
-    run_server(host=host, port=port, use_https=args.ssl)
+    args = parser.parse_args()
+
+    use_https = args.ssl
+
+    run_server(host=args.host, port=args.port, use_https=use_https)
