@@ -167,13 +167,13 @@ class DropperinoServer(SimpleHTTPRequestHandler):
     def __handle_upload(self) -> Tuple[bool, str]:
         content_type = self.headers.get('content-type', '')
         if not content_type.startswith('multipart/form-data'):
-            return False, 500, "Unexpected content type"
+            return False, 400, "Invalid content type."
 
         boundary = content_type.split('=')[1].encode('utf-8')
         content_length = int(self.headers['content-length'])
 
         if not boundary in self.rfile.readline():
-            return False, 500, "Content did not begin with expected boundary."
+            return False, 400, "Content did not begin with expected boundary."
 
         filename_line = self.rfile.readline().decode('utf-8')
 
@@ -194,7 +194,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
                     if boundary in line:
                         break
                     f.write(line)
-                    
+        
         except IOError:
             return False, 500, f"Failed to save file {filename}. Check your permissions."
         
