@@ -31,7 +31,6 @@ SSL_STATE_OR_PROVINCE_NAME = u"Masovia"
 SSL_LOCALITY_NAME = u"Warsaw"
 SSL_ORGANIZATION_NAME = u"get.rekt"
 SSL_COMMON_NAME = u"get.rekt"
-SSL_DNS_NAME = u"get.rekt"
 
 POWERED_BY = "https://github.com/krystianbajno/dropperino"
 
@@ -252,7 +251,7 @@ class SSLHandler:
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.now(timezone.utc))
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
-            .add_extension(x509.SubjectAlternativeName([x509.DNSName(SSL_DNS_NAME)]), critical=False)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(u"get.rekt")]), critical=False)
             .sign(key, hashes.SHA256())
         )
     
