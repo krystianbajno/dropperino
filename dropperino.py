@@ -41,6 +41,12 @@ CSS = """
     h2 { color: lime; }
     a { color: lime; }
     a:active { color: green; }
+    .status-success {
+        color: lime;
+    }
+    .status-failed {
+        color: red;
+    }
 </style>
 """
 
@@ -74,14 +80,14 @@ def INDEX_VIEW(path, files):
         </html>
     """
     
-def UPLOAD_RESPONSE_VIEW(success, message):
+def UPLOAD_STATUS_VIEW(message):
     return f"""
         <!DOCTYPE html>
         <html>
             <head><title>Upload Status</title></head>
             <body>
                 <h2>Upload Result</h2>
-                <strong>{'Success' if success else 'Failed'}:</strong> {html.escape(message)}<br>
+                <p>{message}</p>
                 <h2><a href="/">Go Back</a></h2><br>
                 {CSS}
                 <small><b>Powered by {POWERED_BY}</b></small>
@@ -89,64 +95,109 @@ def UPLOAD_RESPONSE_VIEW(success, message):
         </html>
     """
     
+def UPLOAD_SUCCESS_MESSAGE(status_code, filename):
+     return f"""
+        <strong class='status-success'>[+] {status_code}: UPLOAD SUCCESS.</strong>
+        <p>File <strong>{html.escape(filename)}</strong> uploaded successfully.</p>
+     """
+ 
+def UPLOAD_FAILURE_MESSAGE(status_code, message):
+     return f"""
+        <strong class='status-failed'>[-] {status_code}: UPLOAD FAILED.</strong> 
+        <p><strong>{html.escape(str(message))}</strong></p>
+    """
 
 class DropperinoServer(SimpleHTTPRequestHandler):
     def __init__(self, *args, directory=None, **kwargs):
         self.base_directory = os.path.abspath(directory) if directory else os.getcwd()
-        print(self.base_directory)
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        file_obj = self.handle_index() or self.handle_serve_file(self.path)
+        file_obj = self.__handle_index() or self.__handle_serve_file()
+        
         if file_obj:
-            self._copy_file(file_obj, self.wfile)
+            shutil.copyfileobj(file_obj, self.wfile)
 
     def do_POST(self):
-        success, message = self.handle_upload()
-        self.send_html_response(UPLOAD_RESPONSE_VIEW(success, message))
-
-    def handle_index(self) -> Optional[BytesIO]:
-        path = self._translate_path(self.path)
+        success, status_code, message = self.__handle_upload()
+        
+        if success:
+            message = UPLOAD_SUCCESS_MESSAGE(status_code, message)
+        else:
+            message = UPLOAD_FAILURE_MESSAGE(status_code, message)
+        
+        self.__send_html_response(
+            UPLOAD_STATUS_VIEW(message),
+            status_code
+        )
+        
+    def __handle_index(self) -> Optional[BytesIO]:
+        path = self.__translate_path()
+        
         if os.path.isdir(path):
             if not self.path.endswith('/'):
-                self.send_redirect(self.path + "/")
+                self.__send_redirect(self.path + "/")
+                return None            
+            try:
+                files = os.listdir(path)
+            except os.error:
+                self.__send_error_response(403, "Forbidden")
                 return None
-            return self._build_index_response(path)
+            
+            response_html = INDEX_VIEW(path, files)
+            return self.__send_html_response(response_html)
+        
         return None
 
-    def handle_serve_file(self, file: str) -> Optional[BytesIO]:
-        path = self.translate_path(self.path)
+    def __handle_serve_file(self) -> Optional[BytesIO]:
+        path = self.__translate_path()
+        
         try:
             file_obj = open(path, 'rb')
         except IOError:
-            self.send_error_response(404, "File not found")
+            self.__send_error_response(404, "File not found")
             return None
 
-        self.send_file_headers(path)
+        self.__send_file_headers(path)
         return file_obj
 
-    def handle_upload(self) -> Tuple[bool, str]:
+    def __handle_upload(self) -> Tuple[bool, str]:
         content_type = self.headers.get('content-type', '')
         if not content_type.startswith('multipart/form-data'):
-            return False, "Unexpected content type"
+            return False, 500, "Unexpected content type"
 
         boundary = content_type.split('=')[1].encode('utf-8')
         content_length = int(self.headers['content-length'])
 
-        if not self._validate_boundary(boundary):
-            return False, "Content did not begin with expected boundary."
+        if not boundary in self.rfile.readline():
+            return False, 500, "Content did not begin with expected boundary."
 
-        filename = self._extract_filename()
+        filename_line = self.rfile.readline().decode('utf-8')
+
+        filename = html.escape(filename_line.split('filename=')[1].strip().strip('"'))
         filepath = os.path.join(self.base_directory, filename)
 
         try:
-            self._save_uploaded_file(filepath, boundary, content_length)
+            while True:
+                line = self.rfile.readline()
+                content_length -= len(line)
+                if not line.strip():
+                    break
+
+            with open(filepath, 'wb') as f:
+                while content_length > 0:
+                    line = self.rfile.readline()
+                    content_length -= len(line)
+                    if boundary in line:
+                        break
+                    f.write(line)
+                    
         except IOError:
-            return False, f"Failed to save file {html.escape(filename)}"
+            return False, 500, f"Failed to save file {filename}. Check your permissions."
         
-        return True, f"File {html.escape(filename)} uploaded successfully."
+        return True, 200, filename
     
-    def send_file_headers(self, path: str):
+    def __send_file_headers(self, path: str):
         file_size = os.path.getsize(path)
         content_type = self.guess_type(path)
         self.send_response(200)
@@ -155,66 +206,29 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         self.send_header("Content-Disposition", f'attachment; filename="{os.path.basename(path)}"')
         self.end_headers()
 
-    def send_html_response(self, html_content: str):
+    def __send_html_response(self, html_content: str, code = 200):
         response_bytes = html_content.encode('utf-8')
-        self.send_response(200)
+        self.send_response(code)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(response_bytes)))
         self.end_headers()
         self.wfile.write(response_bytes)
 
-    def send_error_response(self, status_code: int, message: str):
+    def __send_error_response(self, status_code: int, message: str):
         self.send_error(status_code, message)
 
-    def send_redirect(self, location: str):
+    def __send_redirect(self, location: str):
         self.send_response(301)
         self.send_header("Location", location)
         self.end_headers()
-    
-    ### -------------
-    
-    def _translate_path(self, path):
-        path = unquote(path)
+        
+    def __translate_path(self):
+        path = unquote(self.path)
         path = path.split('?', 1)[0]
         path = path.split('#', 1)[0]
         path = os.path.normpath(path)
-        return os.path.join(self.base_directory, path.lstrip('/'))
-
-    def _validate_boundary(self, boundary: bytes) -> bool:
-        line = self.rfile.readline()
-        return boundary in line
-
-    def _extract_filename(self) -> str:
-        filename_line = self.rfile.readline().decode('utf-8')
-        return html.escape(filename_line.split('filename=')[1].strip().strip('"'))
-
-    def _save_uploaded_file(self, filepath: str, boundary: bytes, content_length: int):
-        while True:
-            line = self.rfile.readline()
-            content_length -= len(line)
-            if not line.strip():
-                break
-
-        with open(filepath, 'wb') as f:
-            while content_length > 0:
-                line = self.rfile.readline()
-                content_length -= len(line)
-                if boundary in line:
-                    break
-                f.write(line)
-
-    def _copy_file(self, source: BytesIO, output):
-        shutil.copyfileobj(source, output)
-
-    def _build_index_response(self, path: str) -> BytesIO:
-        try:
-            files = os.listdir(path)
-        except os.error:
-            self.send_error_response(404, "No permission to list directory")
-            return None
-
-        response_html = INDEX_VIEW(path, files)
-        return self.send_html_response(response_html)
+        path = os.path.join(self.base_directory, path.lstrip('/'))
+        return path 
         
 class SSLHandler:
     def __init__(self):
