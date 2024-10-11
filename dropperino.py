@@ -167,7 +167,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
     def __handle_upload(self) -> Tuple[bool, str]:
         content_type = self.headers.get('content-type', '')
         if not content_type.startswith('multipart/form-data'):
-            return False, 400, "Invalid content type."
+            return False, 422, "Invalid content type. Do not use multipart/form-data."
 
         boundary = content_type.split('=')[1].encode('utf-8')
         content_length = int(self.headers['content-length'])
