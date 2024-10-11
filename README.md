@@ -26,4 +26,6 @@ python3 dropperino.py 8000 # port
 python3 dropperino.py 8000 0.0.0.0  # host port
 python3 dropperino.py 8000 0.0.0.0 --ssl # host port https
 python3 dropperino.py --dir /etc # 0.0.0.0 8000 http, serve /etc directory
+python3 dropperino.py --dir --fullpath # Show full paths instead of relative paths
+
 ```

@@ -32,6 +32,7 @@ SSL_STATE_OR_PROVINCE_NAME = u"Masovia"
 SSL_LOCALITY_NAME = u"Warsaw"
 SSL_ORGANIZATION_NAME = u"get.rekt"
 SSL_COMMON_NAME = u"get.rekt"
+SSL_DNSNAME = u"get.rekt"
 
 POWERED_BY = "https://github.com/krystianbajno/dropperino"
 
@@ -67,12 +68,13 @@ def INDEX_VIEW(path, files):
                 </form><hr>
                 
                 <ul>
-                {"\n".join(
-                    f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}/</a></li>'
-                    if os.path.isdir(os.path.join(path, name)) else
-                    f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}</a></li>'
-                    for name in sorted(files)
-                )}
+                    <li><a href="../">../</a></li>
+                    {"\n".join(
+                        f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}/</a></li>'
+                        if os.path.isdir(os.path.join(path, name)) else
+                        f'<li><a href="{quote(html.escape(name))}">{html.escape(name)}</a></li>'
+                        for name in sorted(files)
+                    )}
                 </ul>
                 <small><b>Powered by {POWERED_BY}</b></small>
                 {CSS}
@@ -108,7 +110,8 @@ def UPLOAD_FAILURE_MESSAGE(status_code, message):
     """
 
 class DropperinoServer(SimpleHTTPRequestHandler):
-    def __init__(self, *args, directory=None, **kwargs):
+    def __init__(self, *args, directory=None, fullpath=False, **kwargs):
+        self.fullpath = fullpath
         self.base_directory = os.path.abspath(directory) if directory else os.getcwd()
         super().__init__(*args, **kwargs)
 
@@ -144,7 +147,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
                 self.__send_error_response(403, "Forbidden")
                 return None
             
-            response_html = INDEX_VIEW(path, files)
+            response_html = INDEX_VIEW(path if self.fullpath else self.path, files)
             return self.__send_html_response(response_html)
         
         return None
@@ -278,7 +281,7 @@ class SSLHandler:
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.now(timezone.utc))
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
-            .add_extension(x509.SubjectAlternativeName([x509.DNSName(u"get.rekt")]), critical=False)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(SSL_DNSNAME)]), critical=False)
             .sign(key, hashes.SHA256())
         )
     
@@ -317,7 +320,13 @@ class SSLHandler:
         return ssl_context
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False, directory: str = "."):
+def run_server(
+    host: str = "0.0.0.0",
+    port: int = 8000,
+    use_https: bool = False,
+    directory: str = ".",
+    fullpath: bool = False
+):
     ssl_handler = SSLHandler()
     
     if use_https and not __CRYPTO_INSTALLED__:
@@ -325,7 +334,9 @@ def run_server(host: str = "0.0.0.0", port: int = 8000, use_https: bool = False,
         use_https = __CRYPTO_INSTALLED__        
             
     server_address = (host, port)
-    httpd = HTTPServer(server_address, lambda *args, **kwargs: DropperinoServer(*args, directory=directory, **kwargs))
+    httpd = HTTPServer(server_address, lambda *args, **kwargs: DropperinoServer(
+        *args, directory=directory, fullpath=fullpath, **kwargs
+    ))
 
     if use_https:
         ssl_handler.setup_ssl_context(httpd)
@@ -351,14 +362,16 @@ if __name__ == '__main__':
     parser.add_argument('host', nargs='?', default='0.0.0.0', help="The host address to bind to (default: 0.0.0.0)")
     parser.add_argument('--ssl', action='store_true', help="Enable HTTPS with a self-signed certificate.")
     parser.add_argument('--dir', default=".", help="Specify the directory to serve files from (default: current directory)")
+    parser.add_argument('--fullpath', action='store_true', help="Show full paths instead of relative paths.")
 
     args = parser.parse_args()
 
     use_https = args.ssl
     directory = os.path.abspath(args.dir)
+    fullpath = args.fullpath
 
     if not os.path.exists(directory) or not os.path.isdir(directory):
         print(f"Error: Directory '{directory}' does not exist or is not a directory.")
         exit(1)
 
-    run_server(host=args.host, port=args.port, use_https=use_https, directory=directory)
+    run_server(host=args.host, port=args.port, use_https=use_https, directory=directory, fullpath=fullpath)
