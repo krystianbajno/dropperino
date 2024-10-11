@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import ssl
 import signal
 import shutil
@@ -206,7 +207,7 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def __send_html_response(self, html_content: str, code = 200):
-        response_bytes = html_content.encode('utf-8')
+        response_bytes = self.__minify_html_with_css(html_content).encode('utf-8')
         self.send_response(code)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(response_bytes)))
@@ -228,6 +229,32 @@ class DropperinoServer(SimpleHTTPRequestHandler):
         path = os.path.normpath(path)
         path = os.path.join(self.base_directory, path.lstrip('/'))
         return path 
+    
+    def __minify_html_with_css(self, html_content):
+        html_content = re.sub(r'<!--.*?-->', '', html_content, flags=re.DOTALL)
+        html_content = re.sub(r'>\s+<', '><', html_content)
+        
+        def minify_css(css_content):
+            css_content = re.sub(r'/\*.*?\*/', '', css_content, flags=re.DOTALL)
+            css_content = re.sub(r'\s+', ' ', css_content)
+            css_content = re.sub(r'\s*{\s*', '{', css_content)
+            css_content = re.sub(r'\s*}\s*', '}', css_content)
+            css_content = re.sub(r'\s*:\s*', ':', css_content)
+            css_content = re.sub(r'\s*;\s*', ';', css_content)
+            css_content = re.sub(r';}', '}', css_content)
+            
+            return css_content.strip()
+        
+        def minify_css_in_style_tags(match):
+            css_code = match.group(1)
+            minified_css = minify_css(css_code)
+            return f'<style>{minified_css}</style>'
+        
+        html_content = re.sub(r'<style>(.*?)</style>', minify_css_in_style_tags, html_content, flags=re.DOTALL)
+        
+        html_content = html_content.strip()
+        
+        return html_content
         
 class SSLHandler:
     def __init__(self):
